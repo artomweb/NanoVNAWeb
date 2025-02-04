@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="src/index.css" />
+  </head>
+  <body>
+    <div class="flex flex-col w-3/4 mx-auto gap-3 max-w-xl">
+      <canvas
+        id="screenshotCanvas"
+        class="bg-sky-300/50"
+        width="800"
+        height="480"></canvas>
+      <div class="flex justify-center gap-3">
+        <button id="connect" class="btn btn-primary">Connect</button>
+        <button id="disconnect" class="btn btn-error btn-disabled">
+          Disconnect
+        </button>
+        <span class="loading-spinner loading-md" id="spinner"></span>
+      </div>
+      <div id="actions" class="flex gap-3 justify-center">
+        <button id="screenshot" class="btn btn-secondary btn-disabled">
+          Screenshot
+        </button>
+        <button id="getPortInfo" class="btn btn-secondary btn-disabled">
+          Get Port info
+        </button>
+        <button id="getSweep" class="btn btn-secondary btn-disabled">
+          Get Sweep
+        </button>
+      </div>
+      <div></div>
+      <div>
+        <fieldset
+          class="fieldset w-xs bg-base-200 border border-base-300 p-4 rounded-box">
+          <legend class="fieldset-legend">Set start and stop</legend>
+          <label class="input">
+            <input type="text" placeholder="START Frequency" />
+            <select class="select label select-ghost">
+              <option selected>-</option>
+              <option>G</option>
+              <option>M</option>
+              <option>K</option>
+            </select>
+          </label>
+          <label class="input">
+            <input type="text" placeholder="STOP Frequency" />
+            <select class="select label select-ghost">
+              <option selected>-</option>
+              <option>G</option>
+              <option>M</option>
+              <option>K</option>
+            </select>
+          </label>
+        </fieldset>
+
+        <fieldset
+          class="fieldset w-xs bg-base-200 border border-base-300 p-4 rounded-box">
+          <legend class="fieldset-legend">Current Settings</legend>
+          <label class="input">
+            START
+            <input type="text" class="grow" value="-" id="currentStart" />
+          </label>
+          <label class="input">
+            STOP
+            <input type="text" class="grow" value="-" id="currentStop" />
+          </label>
+          <label class="input">
+            CENTER
+            <input type="text" class="grow" value="-" id="currentCenter" />
+          </label>
+          <label class="input">
+            SPAN
+            <input type="text" class="grow" value="-" id="currentSpan" />
+          </label>
+          <label class="input">
+            CW
+            <input type="text" class="grow" value="-" id="currentCW" />
+          </label>
+          <label class="input">
+            STEPS
+            <input type="text" class="grow" value="-" id="currentSteps" />
+          </label>
+        </fieldset>
+      </div>
+    </div>
+    <script type="module" src="./src/index.js"></script>
+  </body>
+</html>
