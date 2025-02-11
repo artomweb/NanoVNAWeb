@@ -19,15 +19,26 @@
         </button>
         <span class="loading-spinner loading-md" id="spinner"></span>
       </div>
-      <div id="actions" class="flex gap-3 justify-center">
-        <button id="screenshot" class="btn btn-secondary btn-disabled">
+      <div class="flex gap-3 justify-center">
+        <button
+          id="screenshot"
+          class="btn btn-secondary btn-disabled actionButton">
           Screenshot
         </button>
-        <button id="getPortInfo" class="btn btn-secondary btn-disabled">
+        <button
+          id="getPortInfo"
+          class="btn btn-secondary btn-disabled actionButton">
           Get Port info
         </button>
-        <button id="getSweep" class="btn btn-secondary btn-disabled">
+        <button
+          id="getSweep"
+          class="btn btn-secondary btn-disabled actionButton">
           Get Sweep
+        </button>
+        <button
+          id="getData"
+          class="btn btn-secondary btn-disabled actionButton">
+          Get Data
         </button>
       </div>
       <div></div>
@@ -53,6 +64,11 @@
               <option>K</option>
             </select>
           </label>
+          <button
+            id="setStartStop"
+            class="btn btn-secondary btn-disabled actionButton">
+            SET
+          </button>
         </fieldset>
 
         <fieldset

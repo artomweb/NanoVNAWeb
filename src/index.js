@@ -12,6 +12,7 @@ class SerialService {
     this.screenshotHandler = this.captureScreenshot.bind(this);
     this.portInfoHandler = this.getPortInfo.bind(this);
     this.getSweepHandler = this.getSweep.bind(this);
+    this.getDataHandler = this.getData.bind(this);
   }
 
   async openSerialPort() {
@@ -52,10 +53,13 @@ class SerialService {
     document
       .getElementById("getSweep")
       .addEventListener("click", this.getSweepHandler);
+    document
+      .getElementById("getData")
+      .addEventListener("click", this.getDataHandler);
 
     document.getElementById("disconnect").classList.remove("btn-disabled");
     document.getElementById("connect").classList.add("btn-disabled");
-    const actionButtons = document.querySelectorAll("#actions button");
+    const actionButtons = document.querySelectorAll(".actionButton");
 
     actionButtons.forEach((button) => {
       button.classList.remove("btn-disabled");
@@ -64,7 +68,22 @@ class SerialService {
     this.readLoop().catch((e) => {
       console.error("error reading");
       console.error(e);
+      this.closeSerialPort();
     });
+  }
+
+  async getData() {
+    this.isAwaiting = true;
+    this.updateSpinner();
+    const cmdString1 = "frequencies";
+    const cmdByteArray1 = new TextEncoder().encode(cmdString1 + "\r");
+
+    await this.writer.write(cmdByteArray1);
+
+    const cmdString2 = "data 1";
+    const cmdByteArray2 = new TextEncoder().encode(cmdString2 + "\r");
+
+    await this.writer.write(cmdByteArray2);
   }
 
   async getSweep() {
@@ -74,13 +93,6 @@ class SerialService {
     const cmdByteArray = new TextEncoder().encode(cmdString + "\r");
 
     await this.writer.write(cmdByteArray);
-
-    // // Wait for command echo
-    // let echo = await this.readUntil(this.reader, cmdByteArray);
-    // console.log(`Echo: ${new TextDecoder().decode(echo)}`);
-
-    // const prompt = new TextEncoder().encode("ch> ");
-    // let response = await this.readUntil(this.reader, prompt);
   }
 
   async getPortInfo() {
@@ -110,20 +122,31 @@ class SerialService {
   }
 
   async closeSerialPort() {
-    if (this.port && this.port.readable) {
+    if (this.port) {
       try {
-        await this.writer.close(); // Close the writer first
-        this.writer.releaseLock(); // Release the writer lock
-        this.writer = null;
+        if (this.writer) {
+          await this.writer.close();
+          this.writer.releaseLock();
+          this.writer = null;
+        }
+        if (this.reader) {
+          await this.reader.cancel();
+          this.reader.releaseLock();
+          this.reader = null;
+        }
 
-        await this.reader.cancel(); // Cancel reading operation
-        await this.reader.releaseLock(); // Release the reader lock
-        this.reader = null;
-
-        await this.port.close(); // Now it's safe to close the port
+        await this.port.close(); // Might throw NetworkError if the device is already lost
         console.log("Serial port closed.");
+      } catch (error) {
+        if (error.message.includes("The device has been lost")) {
+          console.warn("Device was already disconnected.");
+        } else {
+          console.error("Error closing serial port:", error);
+        }
+      } finally {
         this.port = null;
 
+        // Cleanup UI
         document
           .getElementById("disconnect")
           .removeEventListener("click", this.closePortHandler);
@@ -136,19 +159,16 @@ class SerialService {
         document
           .getElementById("getSweep")
           .removeEventListener("click", this.getSweepHandler);
+        document
+          .getElementById("getData")
+          .removeEventListener("click", this.getDataHandler);
 
         document.getElementById("disconnect").classList.add("btn-disabled");
         document.getElementById("connect").classList.remove("btn-disabled");
-        const actionButtons = document.querySelectorAll("#actions button");
-
-        actionButtons.forEach((button) => {
-          button.classList.add("btn-disabled");
-        });
-      } catch (error) {
-        console.error("Error closing serial port:", error);
+        document
+          .querySelectorAll(".actionButton")
+          .forEach((button) => button.classList.add("btn-disabled"));
       }
-    } else {
-      console.warn("No open serial port to close.");
     }
   }
 
@@ -173,8 +193,9 @@ class SerialService {
     console.log("Before CR:", beforeCrText); // Outputs: "Hello"
     console.log("After CR:", afterCr); // Outputs: "World"
 
+    const afterCrText = new TextDecoder().decode(afterCr);
+
     if (beforeCrText == "sweep") {
-      const afterCrText = new TextDecoder().decode(afterCr);
       let s = afterCrText.split(" "); // Use map to return the modified array
       if (s[1] < 0) {
         console.log(`Center: ${s[0]}, Span: ${s[1] * -1}, Steps: ${s[2]}`);
@@ -204,7 +225,30 @@ class SerialService {
       console.log(s);
     } else if (beforeCrText == "capture") {
       this.displayImage(afterCr, 800, 480);
+    } else if (beforeCrText.startsWith("data")) {
+      const magnitudes = this.getMags(afterCrText);
+      console.log(afterCrText);
+      console.log(magnitudes);
+      const max = Math.max(...magnitudes);
+      console.log(max);
+      const sum = magnitudes.reduce((a, b) => a + b, 0);
+      const avg = sum / magnitudes.length || 0;
+      console.log(avg);
+    } else {
+      console.log(afterCrText);
     }
+  }
+
+  getMags(text) {
+    const components = text.split("\n");
+    return components
+      .map((line) => {
+        let [real, imag] = line.split(" ").map(Number);
+        if (isNaN(real) || isNaN(imag)) return null; // Handle invalid lines
+        let magnitude = Math.sqrt(real ** 2 + imag ** 2);
+        return 20 * Math.log10(magnitude);
+      })
+      .filter((x) => x !== null); // Remove invalid entries
   }
 
   // Loop to continuously read data from the serial stream
