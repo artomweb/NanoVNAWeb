@@ -1,3 +1,5 @@
+let dataChart;
+
 class SerialService {
   constructor() {
     this.reader = null;
@@ -8,16 +10,102 @@ class SerialService {
 
     this.isAwaiting = false;
 
+    this.dataInterval = null;
+    this.startTime = null;
+    this.lastDataTime = null;
+    this.filterDuplicates = true;
+    this.lastAvgValue = null;
+
     this.closePortHandler = this.closeSerialPort.bind(this);
     this.screenshotHandler = this.captureScreenshot.bind(this);
     this.portInfoHandler = this.getPortInfo.bind(this);
     this.getSweepHandler = this.getSweep.bind(this);
-    this.getDataHandler = this.getData.bind(this);
+    this.getDataHandler = this.getFrequenciesAndData.bind(this);
+    this.startRunHandler = this.startRun.bind(this);
+    this.stopRunHandler = this.stopRun.bind(this);
+    this.copyResultsHandler = this.copyResults.bind(this);
+    this.checkBoxChangedHandler = this.checkBoxChanged.bind(this);
+
+    const ctx = document.getElementById("dataChart").getContext("2d");
+
+    if (dataChart) {
+      dataChart.destroy();
+    }
+
+    dataChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: [], // Time labels
+        datasets: [
+          {
+            label: "Average Data",
+            data: [],
+            borderColor: "blue",
+            fill: false,
+          },
+        ],
+      },
+      options: {
+        animation: {
+          duration: 0, // Disable animations
+        },
+        scales: {
+          x: {
+            type: "linear",
+            position: "bottom",
+            min: 0, // Forces the x-axis to start at zero
+            title: {
+              display: true,
+              text: "Time since start of test (seconds)", // Y-axis label
+            },
+          },
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: "Signal strength (dBm)", // Y-axis label
+            },
+          },
+        },
+        plugins: {
+          legend: {
+            display: false, // Hides the legend
+          },
+        },
+      },
+    });
+  }
+
+  copyResults() {
+    // Extract chart data (labels and dataset)
+    const labels = dataChart.data.labels;
+    const data = dataChart.data.datasets[0].data;
+
+    // Check if there's any data in the chart
+    if (labels.length === 0 || data.length === 0) {
+      alert("No data to copy.");
+      return;
+    }
+
+    // Create CSV format: "Time (seconds), Signal strength (dBm)"
+    let csvContent = "Time (seconds)\tSignal strength (dBm)\n";
+
+    // Loop through the data and create rows
+    for (let i = 0; i < labels.length; i++) {
+      csvContent += `${labels[i]}\t${data[i]}\n`;
+    }
+
+    const textArea = document.createElement("textarea");
+    textArea.value = csvContent;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textArea);
   }
 
   async openSerialPort() {
     try {
-      // Specify the VID and PID for NanoVNA or tinySA
+      // Specify the VID and PID for NanoVNA
       const VID = 0x0483; // 1155
       const PID = 0x5740; // 22336
 
@@ -57,11 +145,24 @@ class SerialService {
       .getElementById("getData")
       .addEventListener("click", this.getDataHandler);
 
+    document
+      .getElementById("startRun")
+      .addEventListener("click", this.startRunHandler);
+    document
+      .getElementById("stopRun")
+      .addEventListener("click", this.stopRunHandler);
+    document
+      .getElementById("stopRun")
+      .addEventListener("click", this.copyResultsHandler);
+
+    document
+      .getElementById("filterDuplicates")
+      .addEventListener("change", this.checkBoxChangedHandler);
+
     document.getElementById("disconnect").classList.remove("btn-disabled");
     document.getElementById("connect").classList.add("btn-disabled");
-    const actionButtons = document.querySelectorAll(".actionButton");
 
-    actionButtons.forEach((button) => {
+    document.querySelectorAll(".actionButton").forEach((button) => {
       button.classList.remove("btn-disabled");
     });
 
@@ -72,7 +173,11 @@ class SerialService {
     });
   }
 
-  async getData() {
+  checkBoxChanged() {
+    this.filterDuplicates = document.getElementById("filterDuplicates").checked;
+  }
+
+  async getFrequenciesAndData() {
     this.isAwaiting = true;
     this.updateSpinner();
     const cmdString1 = "frequencies";
@@ -80,10 +185,85 @@ class SerialService {
 
     await this.writer.write(cmdByteArray1);
 
+    setTimeout(() => {
+      const cmdString2 = "data 1";
+      const cmdByteArray2 = new TextEncoder().encode(cmdString2 + "\r");
+
+      this.writer.write(cmdByteArray2);
+    }, 1000);
+  }
+
+  async getData() {
+    console.warn("GET DATA");
+    this.isAwaiting = true;
+    this.updateSpinner();
     const cmdString2 = "data 1";
     const cmdByteArray2 = new TextEncoder().encode(cmdString2 + "\r");
 
-    await this.writer.write(cmdByteArray2);
+    this.writer.write(cmdByteArray2);
+  }
+
+  // Start Run - Calls getData every 5 seconds
+  startRun() {
+    if (this.dataInterval) return; // Avoid multiple intervals
+    this.clearChart(); // clear the data chart
+    this.startTime = Date.now();
+
+    this.getData(); // Initial call
+    this.dataInterval = setInterval(() => {
+      if (!this.startTime) return;
+      const now = Date.now();
+      if (now - this.lastDataTime > 5000) {
+        this.getData();
+      }
+    }, 1000);
+
+    // Disable startRun and enable stopRun
+    document.getElementById("startRun").classList.add("btn-disabled");
+    document.getElementById("stopRun").classList.remove("btn-disabled");
+  }
+
+  // Stop Run - Clears interval
+  stopRun() {
+    if (this.dataInterval) {
+      clearInterval(this.dataInterval);
+      this.dataInterval = null;
+    }
+    this.startTime = null;
+
+    // Enable startRun and disable stopRun
+    document.getElementById("startRun").classList.remove("btn-disabled");
+    document.getElementById("stopRun").classList.add("btn-disabled");
+  }
+
+  updateChart(avgValue) {
+    if (!this.startTime) return;
+    if (this.filterDuplicates && this.lastAvgValue === avgValue) {
+      if (this.startTime) {
+        this.getData();
+      }
+      return;
+    }
+
+    const now = Date.now();
+    this.lastDataTime = now;
+    const elapsedSeconds = ((now - this.startTime) / 1000).toFixed(1); // Time in seconds
+    console.log("averageValue ", avgValue, "Time ", elapsedSeconds);
+
+    this.lastAvgValue = avgValue;
+
+    dataChart.data.labels.push(elapsedSeconds);
+    dataChart.data.datasets[0].data.push(avgValue);
+    dataChart.update();
+    if (!this.startTime) return;
+    this.getData();
+    console.log("next data");
+  }
+
+  clearChart() {
+    dataChart.data.labels = []; // Remove all time labels
+    dataChart.data.datasets[0].data = []; // Remove all data points
+    dataChart.update(); // Refresh the chart
   }
 
   async getSweep() {
@@ -135,6 +315,10 @@ class SerialService {
           this.reader = null;
         }
 
+        if (dataChart) {
+          dataChart.destroy();
+        }
+
         await this.port.close(); // Might throw NetworkError if the device is already lost
         console.log("Serial port closed.");
       } catch (error) {
@@ -163,6 +347,19 @@ class SerialService {
           .getElementById("getData")
           .removeEventListener("click", this.getDataHandler);
 
+        document
+          .getElementById("startRun")
+          .removeEventListener("click", this.startRunHandler);
+        document
+          .getElementById("stopRun")
+          .removeEventListener("click", this.stopRunHandler);
+        document
+          .getElementById("copyResults")
+          .removeEventListener("click", this.copyResultsHandler);
+        document
+          .getElementById("filterDuplicates")
+          .removeEventListener("click", this.checkBoxChangedHandler);
+
         document.getElementById("disconnect").classList.add("btn-disabled");
         document.getElementById("connect").classList.remove("btn-disabled");
         document
@@ -174,6 +371,7 @@ class SerialService {
 
   // Function to parse data
   parseData(buffer) {
+    if (!this.isAwaiting) return;
     this.isAwaiting = false;
     this.updateSpinner();
     let data = new Uint8Array(buffer);
@@ -190,8 +388,8 @@ class SerialService {
     const beforeCrText = new TextDecoder().decode(data.slice(0, index));
     const afterCr = data.slice(index + 2).slice(0, -chPrompt.length);
 
-    console.log("Before CR:", beforeCrText); // Outputs: "Hello"
-    console.log("After CR:", afterCr); // Outputs: "World"
+    // console.log("Before CR:", beforeCrText); // Outputs: "Hello"
+    // console.log("After CR:", afterCr); // Outputs: "World"
 
     const afterCrText = new TextDecoder().decode(afterCr);
 
@@ -227,13 +425,18 @@ class SerialService {
       this.displayImage(afterCr, 800, 480);
     } else if (beforeCrText.startsWith("data")) {
       const magnitudes = this.getMags(afterCrText);
-      console.log(afterCrText);
-      console.log(magnitudes);
-      const max = Math.max(...magnitudes);
-      console.log(max);
-      const sum = magnitudes.reduce((a, b) => a + b, 0);
-      const avg = sum / magnitudes.length || 0;
+      const filteredMagnitudes = magnitudes.filter((value) =>
+        Number.isFinite(value)
+      );
+      // console.log(afterCrText);
+      // console.log(filteredMagnitudes);
+      const max = Math.max(...filteredMagnitudes);
+      // console.log(max);
+      const sum = filteredMagnitudes.reduce((a, b) => a + b, 0);
+      const avg = sum / filteredMagnitudes.length;
       console.log(avg);
+      // console.log(filteredMagnitudes.length);
+      this.updateChart(avg);
     } else {
       console.log(afterCrText);
     }
@@ -291,32 +494,6 @@ class SerialService {
       .slice(buffer.length - pattern.length)
       .every((val, index) => val === pattern[index]);
   }
-
-  // async readUntil(reader, pattern) {
-  //   let chunks = [];
-  //   let done = false;
-
-  //   while (!done) {
-  //     const { value, done: readerDone } = await reader.read();
-  //     if (readerDone) {
-  //       break;
-  //     }
-
-  //     // Append the new chunk to the chunks buffer
-  //     chunks.push(...value);
-
-  //     // Only check for the pattern in the most recent chunk and the previous ones
-  //     let startIdx = Math.max(0, chunks.length - pattern.length);
-
-  //     // Slice the chunks buffer to check for the pattern
-  //     let patternMatch = chunks.slice(startIdx).join("") === pattern.join("");
-  //     if (patternMatch) {
-  //       done = true;
-  //     }
-  //   }
-
-  //   return new Uint8Array(chunks);
-  // }
 
   convertRGB565ToRGBA(data, width, height) {
     const output = new Uint8ClampedArray(width * height * 4); // RGBA8888 format
