@@ -88,7 +88,8 @@ export default class VNAConnection {
       });
     } catch (error) {
       console.error("Error opening serial port:", error);
-      return;
+      // this.controller.VNA = null;
+      throw error;
     }
 
     this.writer = this.port.writable.getWriter();

@@ -31,7 +31,8 @@ export default class MotorConnection {
       });
     } catch (error) {
       console.error("Error opening serial port:", error);
-      return;
+      // this.controller.motor = null;
+      throw error;
     }
 
     this.writer = this.port.writable.getWriter();
@@ -55,6 +56,10 @@ export default class MotorConnection {
       console.error(e);
       this.closeSerialPort();
     });
+
+    const info = await this.port.getInfo();
+
+    console.log(info);
   }
 
   jogAmountChanged() {

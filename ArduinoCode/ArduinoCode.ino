@@ -2,8 +2,13 @@
 #include <AccelStepper.h>
 #include <AccelStepperWithDistance.h>
 
-#define STEP_PIN 2
-#define DIR_PIN 3
+#define STEP_PIN 3
+#define DIR_PIN 2
+#define ENABLE_PIN 7  // A4988 Enable pin
+
+#define MS1 6
+#define MS2 5
+#define MS3 4
 
 AccelStepperWithDistance stepper(AccelStepperWithDistance::DRIVER, STEP_PIN, DIR_PIN);
 
@@ -13,42 +18,51 @@ AccelStepperWithDistance stepper(AccelStepperWithDistance::DRIVER, STEP_PIN, DIR
 float currentPosition = 0.0;  // Track the current position in mm
 
 void setup() {
-  Serial.begin(250000);  // Set a higher baud rate for faster communication
-  stepper.setMaxSpeed(100);
-  stepper.setAcceleration(100);
-  stepper.setStepsPerRotation(200);            // For a 1.8° stepper motor
-  stepper.setMicroStep(16);                    // If using 1/16 microstepping
-  stepper.setDistancePerRotation(MM_PER_REV);  // If one rotation moves 8mm
+  pinMode(ENABLE_PIN, OUTPUT);
+  digitalWrite(ENABLE_PIN, HIGH);  // Disable motor initially
+
+  pinMode(MS1, OUTPUT);
+  pinMode(MS2, OUTPUT);
+  pinMode(MS3, OUTPUT);
+  digitalWrite(MS1, HIGH);
+  digitalWrite(MS2, HIGH);
+  digitalWrite(MS3, HIGH);
+
+  Serial.begin(250000);
+  stepper.setMaxSpeed(1000);
+  stepper.setAcceleration(500);
+  stepper.setStepsPerRotation(200);            
+  stepper.setMicroStep(16);                    
+  stepper.setDistancePerRotation(MM_PER_REV); 
+  // stepper.setMinPulseWidth(10);
   Serial.println("Stepper ready");
 }
 
 void loop() {
   if (Serial.available() > 0) {
     String command = Serial.readStringUntil('\n');  // Read the command
-    command.trim();                                 // Remove any trailing spaces or newlines
+    command.trim();                                  // Remove any trailing spaces or newlines
 
     if (command.startsWith("JOG")) {
-      // Parse the jog amount
       float jogAmount = command.substring(4).toFloat();
 
-      stepper.moveRelative(jogAmount);  // Set the relative movement
+      digitalWrite(ENABLE_PIN, LOW);  // Enable motor
+      stepper.moveRelative(jogAmount);
       while (stepper.isRunning()) {
-        stepper.run();  // Keep moving the motor
+        stepper.run();
       }
+      digitalWrite(ENABLE_PIN, HIGH);  // Disable motor when done
 
-      currentPosition += jogAmount;  // Update position based on jogAmount
-
-      // Output the results over serial
-      Serial.print(command);  // Echo command
+      currentPosition += jogAmount;
+      Serial.print(command);
       Serial.print(" ");
-      Serial.print(currentPosition, 2);  // Print position in mm
+      Serial.print(currentPosition, 2);
       Serial.println();
     } else if (command.startsWith("SETHOME")) {
       currentPosition = 0;
-
-      Serial.print(command);  // Echo command
+      Serial.print(command);
       Serial.print(" ");
-      Serial.print(currentPosition, 2);  // Print position in mm
+      Serial.print(currentPosition, 2);
       Serial.println();
     }
   }

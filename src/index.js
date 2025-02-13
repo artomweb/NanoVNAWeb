@@ -48,30 +48,36 @@ class Controller {
   }
 
   async connectMotor() {
-    this.motor = new MotorConnection(this);
-    await this.motor.openSerialPort();
-
-    console.log(this.VNA, this.motor);
-    if (this.VNA && this.motor) {
-      document.getElementById("connectBoth").classList.add("btn-disabled");
-      document
-        .getElementById("disconnectBoth")
-        .classList.remove("btn-disabled");
+    try {
+      this.motor = new MotorConnection(this);
+      await this.motor.openSerialPort();
+    } catch {
+      this.motor = null;
     }
+    console.log(this.VNA, this.motor);
+    // if (this.VNA && this.motor) {
+    //   document.getElementById("connectBoth").classList.add("btn-disabled");
+    //   document
+    //     .getElementById("disconnectBoth")
+    //     .classList.remove("btn-disabled");
+    // }
   }
 
   async connectVNA() {
-    this.VNA = new VNAConnection(dataChart, this);
-    await this.VNA.openSerialPort();
-    console.log(controller);
+    try {
+      this.VNA = new VNAConnection(dataChart, this);
+      await this.VNA.openSerialPort();
+    } catch {
+      this.VNA = null;
+    }
 
     console.log(this.VNA, this.motor);
-    if (this.VNA && this.motor) {
-      document.getElementById("connectBoth").classList.add("btn-disabled");
-      document
-        .getElementById("disconnectBoth")
-        .classList.remove("btn-disabled");
-    }
+    // if (this.VNA && this.motor) {
+    //   document.getElementById("connectBoth").classList.add("btn-disabled");
+    //   document
+    //     .getElementById("disconnectBoth")
+    //     .classList.remove("btn-disabled");
+    // }
   }
 
   async connectBoth() {
@@ -148,14 +154,14 @@ document.getElementById("connectVNA").addEventListener("click", () => {
   controller.connectVNA();
 });
 
-document.getElementById("connectBoth").addEventListener("click", async () => {
-  await controller.connectBoth();
-});
-document
-  .getElementById("disconnectBoth")
-  .addEventListener("click", async () => {
-    await controller.disconnectBoth();
-  });
+// document.getElementById("connectBoth").addEventListener("click", async () => {
+//   await controller.connectBoth();
+// });
+// document
+//   .getElementById("disconnectBoth")
+//   .addEventListener("click", async () => {
+//     await controller.disconnectBoth();
+//   });
 
 window.addEventListener("load", () => {
   const ctx = document.getElementById("dataChart").getContext("2d");
