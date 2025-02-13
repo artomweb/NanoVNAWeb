@@ -4,8 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="src/index.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-error-bars@4.4.4/build/index.umd.min.js"></script> -->
   </head>
   <body>
     <div class="flex flex-col w-3/4 mx-auto gap-3 max-w-xl">
@@ -15,37 +16,98 @@
         width="800"
         height="480"></canvas>
       <div class="flex justify-center gap-3">
-        <button id="connect" class="btn btn-primary">Connect</button>
-        <button id="disconnect" class="btn btn-error btn-disabled">
-          Disconnect
+        <button id="connectBoth" class="btn btn-primary">Connect Both</button>
+        <button id="disconnectBoth" class="btn btn-error btn-disabled">
+          Disconnect Both
         </button>
+      </div>
+      <div class="flex justify-center gap-3 items-center">
+        <button id="connectVNA" class="btn btn-primary">Connect VNA</button>
+        <button id="disconnectVNA" class="btn btn-error btn-disabled">
+          Disconnect VNA
+        </button>
+        <input
+          id="VNAConnected"
+          type="checkbox"
+          class="checkbox checkbox-success pointer-events-none" />
         <span class="loading-spinner loading-md" id="spinner"></span>
       </div>
       <div class="flex gap-3 justify-center flex-wrap">
         <button
           id="screenshot"
-          class="btn btn-secondary btn-disabled actionButton">
+          class="btn btn-secondary btn-disabled VNAactionButton">
           Screenshot
         </button>
         <button
           id="getPortInfo"
-          class="btn btn-secondary btn-disabled actionButton">
+          class="btn btn-secondary btn-disabled VNAactionButton">
           Get Port info
         </button>
         <button
           id="getSweep"
-          class="btn btn-secondary btn-disabled actionButton">
+          class="btn btn-secondary btn-disabled VNAactionButton">
           Get Sweep
         </button>
         <button
           id="getData"
-          class="btn btn-secondary btn-disabled actionButton">
+          class="btn btn-secondary btn-disabled VNAactionButton">
           Get Data
         </button>
       </div>
 
+      <div class="flex justify-center gap-3 items-center">
+        <button id="connectMotor" class="btn btn-primary">Connect Motor</button>
+        <button id="disconnectMotor" class="btn btn-error btn-disabled">
+          Disconnect Motor
+        </button>
+        <input
+          id="motorConnected"
+          type="checkbox"
+          class="checkbox checkbox-success pointer-events-none" />
+        <span class="loading-spinner loading-md" id="spinnerMotor"></span>
+      </div>
+
       <div class="flex gap-3 justify-center flex-wrap">
-        <button id="startRun" class="btn btn-accent btn-disabled actionButton">
+        <button
+          id="jogForwards"
+          class="btn btn-secondary btn-disabled MotoractionButton">
+          Jog Forwards
+        </button>
+        <button
+          id="jogBackwards"
+          class="btn btn-secondary btn-disabled MotoractionButton">
+          Jog Backwards
+        </button>
+        <!-- <button
+          id="setHome"
+          class="btn btn-secondary btn-disabled MotoractionButton">
+          Set Home
+        </button> -->
+      </div>
+      <div class="flex gap-3 justify-center flex-wrap">
+        <div class="w-64">
+          <input
+            id="jogAmount"
+            type="range"
+            min="0"
+            max="4"
+            value="0"
+            class="range"
+            step="1" />
+          <div class="flex w-full justify-between px-2 text-xs">
+            <span>1</span>
+            <span>2</span>
+            <span>4</span>
+            <span>8</span>
+            <span>16</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-3 justify-center flex-wrap">
+        <button
+          id="startRun"
+          class="btn btn-accent btn-disabled VNAactionButton">
           RUN
         </button>
         <button id="stopRun" class="btn btn-error btn-disabled">
@@ -64,7 +126,7 @@
       <div class="flex gap-3 justify-center flex-wrap">
         <button
           id="copyResults"
-          class="btn btn-accent btn-disabled actionButton">
+          class="btn btn-accent btn-disabled VNAactionButton">
           Copy Results
         </button>
       </div>
@@ -93,7 +155,7 @@
           </label>
           <button
             id="setStartStop"
-            class="btn btn-secondary btn-disabled actionButton">
+            class="btn btn-secondary btn-disabled VNAactionButton">
             SET
           </button>
         </fieldset>
