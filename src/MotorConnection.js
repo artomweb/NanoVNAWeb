@@ -105,7 +105,7 @@ export default class MotorConnection {
     console.log(data);
     let decoded = new TextDecoder().decode(data).trim();
     console.log(decoded);
-    if (decoded === "Stepper ready") {
+    if (decoded.includes("ready")) {
       document.getElementById("motorConnected").checked = true;
     }
     let split = decoded.split(" ");

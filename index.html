@@ -9,12 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-error-bars@4.4.4/build/index.umd.min.js"></script> -->
   </head>
   <body>
-    <div class="flex flex-col w-3/4 mx-auto gap-3 max-w-xl">
-      <canvas
-        id="screenshotCanvas"
-        class="bg-sky-300/50"
-        width="800"
-        height="480"></canvas>
+    <div class="flex flex-col w-3/4 mx-auto gap-3 max-w-xl mt-16">
       <!-- <div class="flex justify-center gap-3">
         <button id="connectBoth" class="btn btn-primary">Connect Both</button>
         <button id="disconnectBoth" class="btn btn-error btn-disabled">
@@ -55,7 +50,7 @@
         </button>
       </div>
 
-      <div class="flex justify-center gap-3 items-center">
+      <div class="flex justify-center gap-3 items-center mt-8">
         <button id="connectMotor" class="btn btn-primary">Connect Motor</button>
         <button id="disconnectMotor" class="btn btn-error btn-disabled">
           Disconnect Motor
@@ -105,7 +100,7 @@
         </div>
       </div>
 
-      <div class="flex gap-3 justify-center flex-wrap">
+      <div class="flex gap-3 justify-center flex-wrap mt-8">
         <button
           id="startRun"
           class="btn btn-accent btn-disabled VNAactionButton">
@@ -132,7 +127,13 @@
         </button>
       </div>
 
-      <div>
+      <canvas
+        id="screenshotCanvas"
+        class="bg-sky-300/50 mt-8"
+        width="800"
+        height="480"></canvas>
+
+      <!-- <div>
         <fieldset
           class="fieldset w-xs bg-base-200 border border-base-300 p-4 rounded-box">
           <legend class="fieldset-legend">Set start and stop</legend>
@@ -189,7 +190,7 @@
             <input type="text" class="grow" value="-" id="currentSteps" />
           </label>
         </fieldset>
-      </div>
+      </div> -->
     </div>
     <script type="module" src="./src/index.js"></script>
   </body>

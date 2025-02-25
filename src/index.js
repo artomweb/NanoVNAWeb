@@ -116,7 +116,11 @@ class Controller {
     this.VNA.clearChart(); // clear the data chart
     this.VNA.startTime = Date.now();
 
-    await this.motor.setHome();
+    if (this.motor !== null) {
+      await this.motor.setHome();
+    } else {
+      this.VNA.getData();
+    }
 
     // this.VNA.dataInterval = setInterval(() => {
     //   if (!this.VNA.startTime) return;
@@ -146,14 +150,6 @@ class Controller {
 }
 const controller = new Controller();
 
-document.getElementById("connectMotor").addEventListener("click", () => {
-  controller.connectMotor();
-});
-
-document.getElementById("connectVNA").addEventListener("click", () => {
-  controller.connectVNA();
-});
-
 // document.getElementById("connectBoth").addEventListener("click", async () => {
 //   await controller.connectBoth();
 // });
@@ -164,6 +160,14 @@ document.getElementById("connectVNA").addEventListener("click", () => {
 //   });
 
 window.addEventListener("load", () => {
+  document.getElementById("connectMotor").addEventListener("click", () => {
+    controller.connectMotor();
+  });
+
+  document.getElementById("connectVNA").addEventListener("click", () => {
+    controller.connectVNA();
+  });
+
   const ctx = document.getElementById("dataChart").getContext("2d");
 
   dataChart = new Chart(ctx, {

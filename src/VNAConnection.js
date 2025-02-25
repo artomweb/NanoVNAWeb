@@ -162,6 +162,8 @@ export default class VNAConnection {
       return;
     }
 
+    this.lastAvgValue = avg;
+
     const now = Date.now();
     this.lastDataTime = now;
 
@@ -176,10 +178,10 @@ export default class VNAConnection {
       console.log("Motor Position: ", motorPosition);
 
       if (
-        this.dataChart.options.scales.x.title.text !== "Motor Position (mm)"
+        this.dataChart.options.scales.x.title.text !== "Defect Position (mm)"
       ) {
         this.clearChart(); // Clear the chart if the title needs to be updated
-        this.dataChart.options.scales.x.title.text = "Motor Position (mm)"; // Update x-axis title
+        this.dataChart.options.scales.x.title.text = "Defect Position (mm)"; // Update x-axis title
       }
       XVal = motorPosition;
       // Use motor position for x-axis if motor is connected
@@ -215,7 +217,8 @@ export default class VNAConnection {
     if (!this.startTime) return;
 
     if (this.controller.motor == null) {
-      return this.getData(); // Continue fetching the next data
+      this.getData(); // Continue fetching the next data
+      return;
     }
 
     this.controller.motor.jogForwards();
