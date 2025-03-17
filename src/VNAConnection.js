@@ -16,6 +16,8 @@ export default class VNAConnection {
     this.filterDuplicates = true;
     this.lastAvgValue = null;
 
+    this.showPhase = true;
+
     // Handler method mapping
     this.handlers = {
       disconnectVNA: this.closeSerialPort,
@@ -25,7 +27,23 @@ export default class VNAConnection {
       getData: this.getFrequenciesAndData,
       copyResults: this.copyResults,
       filterDuplicates: this.checkBoxChanged,
+      showPhase: this.togglePhaseVisibility,
     };
+  }
+
+  togglePhaseVisibility() {
+    this.showPhase = document.getElementById("showPhase").checked;
+
+    // If hiding phase and dataset exists, remove it
+    if (!this.showPhase && this.dataChart.data.datasets[1]) {
+      this.dataChart.data.datasets[1].hidden = true;
+    }
+    // If showing phase and dataset exists, show it
+    else if (this.showPhase && this.dataChart.data.datasets[1]) {
+      this.dataChart.data.datasets[1].hidden = false;
+    }
+
+    this.dataChart.update();
   }
 
   copyResults() {
@@ -34,31 +52,40 @@ export default class VNAConnection {
       !this.dataChart ||
       !this.dataChart.data ||
       !this.dataChart.data.datasets[0] ||
-      !this.dataChart.data.datasets[0].data
+      !this.dataChart.data.datasets[0].data ||
+      !this.dataChart.data.datasets[1] ||
+      !this.dataChart.data.datasets[1].data
     ) {
       alert("No data to copy.");
       return;
     }
 
-    const data = this.dataChart.data.datasets[0].data;
+    const magData = this.dataChart.data.datasets[0].data; // Magnitude dataset
+    const phaseData = this.dataChart.data.datasets[1].data; // Phase dataset
 
-    // Check if data array is empty
-    if (data.length === 0) {
+    // Check if data arrays are empty or mismatched
+    if (magData.length === 0 || phaseData.length === 0) {
       alert("No data to copy.");
+      return;
+    }
+    if (magData.length !== phaseData.length) {
+      alert("Magnitude and phase data lengths do not match.");
       return;
     }
 
     // Extract axis titles from the chart options
     const xAxisTitle = this.dataChart.options.scales.x.title.text;
-    const yAxisTitle = this.dataChart.options.scales.y.title.text;
+    const magAxisTitle = this.dataChart.options.scales.y.title.text; // Magnitude (dBm)
+    const phaseAxisTitle = this.dataChart.options.scales.y1.title.text; // Phase (degrees)
 
-    // Create CSV format using the axis titles
-    let csvContent = `${xAxisTitle}\t${yAxisTitle} Mean\tMin\tMax\n`;
+    // Create CSV header with magnitude and phase columns
+    let csvContent = `${xAxisTitle}\t${magAxisTitle} Mean\t${magAxisTitle} Min\t${magAxisTitle} Max\t${phaseAxisTitle} Mean\t${phaseAxisTitle} Min\t${phaseAxisTitle} Max\n`;
 
-    // Loop through the dataset and create rows with x, y, yMin, yMax values
-    for (let i = 0; i < data.length; i++) {
-      const point = data[i];
-      csvContent += `${point.x}\t${point.y}\t${point.yMin}\t${point.yMax}\n`;
+    // Loop through the datasets and create rows with x, magnitude, and phase values
+    for (let i = 0; i < magData.length; i++) {
+      const magPoint = magData[i];
+      const phasePoint = phaseData[i];
+      csvContent += `${magPoint.x}\t${magPoint.y}\t${magPoint.yMin}\t${magPoint.yMax}\t${phasePoint.y}\t${phasePoint.yMin}\t${phasePoint.yMax}\n`;
     }
 
     // Create a textarea for copying the CSV content
@@ -68,6 +95,7 @@ export default class VNAConnection {
     textArea.select();
     document.execCommand("copy");
     document.body.removeChild(textArea);
+    alert("Data copied to clipboard.");
   }
 
   async openSerialPort() {
@@ -151,84 +179,88 @@ export default class VNAConnection {
     this.writer.write(cmdByteArray2);
   }
 
-  updateChart(min, max, avg) {
+  updateChart(minMag, maxMag, avgMag, minPhase, maxPhase, avgPhase) {
     if (!this.startTime) return;
 
-    // Prevent duplicates if the filter is enabled
-    if (this.filterDuplicates && this.lastAvgValue === avg) {
+    // Prevent duplicates if the filter is enabled (based on magnitude)
+    if (this.filterDuplicates && this.lastAvgValue === avgMag) {
       if (this.startTime) {
         this.getData();
       }
       return;
     }
 
-    this.lastAvgValue = avg;
+    this.lastAvgValue = avgMag;
 
     const now = Date.now();
     this.lastDataTime = now;
-
-    // Time in seconds since the start
     const elapsedSeconds = ((now - this.startTime) / 1000).toFixed(1);
 
     let XVal;
-
-    // Check if the motor is connected
     if (this.controller && this.controller.motor != null) {
-      const motorPosition = this.controller.motor.position; // Get motor position
-      console.log("Motor Position: ", motorPosition);
-
+      const motorPosition = this.controller.motor.position;
       if (
         this.dataChart.options.scales.x.title.text !== "Defect Position (mm)"
       ) {
-        this.clearChart(); // Clear the chart if the title needs to be updated
-        this.dataChart.options.scales.x.title.text = "Defect Position (mm)"; // Update x-axis title
+        this.clearChart();
+        this.dataChart.options.scales.x.title.text = "Defect Position (mm)";
       }
       XVal = motorPosition;
-      // Use motor position for x-axis if motor is connected
-      //   this.dataChart.data.labels.push(motorPosition); // Motor position as x-axis label
     } else {
       if (
         this.dataChart.options.scales.x.title.text !==
         "Time since start of test (seconds)"
       ) {
-        this.clearChart(); // Clear the chart if the title needs to be updated
+        this.clearChart();
         this.dataChart.options.scales.x.title.text =
-          "Time since start of test (seconds)"; // Update x-axis title
+          "Time since start of test (seconds)";
       }
-      // Use elapsed time for x-axis if motor is not connected
-      console.log("averageValue ", avg, "Time ", elapsedSeconds);
       XVal = elapsedSeconds;
-      //   this.dataChart.data.labels.push(elapsedSeconds); // Time as x-axis label
     }
 
-    // Push the new data with error bars
+    // Push magnitude data (Dataset 0)
     this.dataChart.data.datasets[0].data.push({
       x: XVal,
-      y: avg, // Average value
-      yMin: min, // Minimum value
-      yMax: max, // Maximum value
+      y: avgMag,
+      yMin: minMag,
+      yMax: maxMag,
     });
 
-    // Update the chart with the new data
-    this.dataChart.update();
+    // Push phase data (Dataset 1) - Add if not already present
+    if (!this.dataChart.data.datasets[1]) {
+      this.dataChart.data.datasets.push({
+        label: "Phase (degrees)",
+        data: [],
+        borderColor: "rgba(75, 192, 192, 1)", // Different color (e.g., teal)
+        backgroundColor: "rgba(75, 192, 192, 0.2)",
+        yAxisID: "y1", // Link to second y-axis
+        pointRadius: 3,
+        borderWidth: 1,
+      });
+    }
+    this.dataChart.data.datasets[1].data.push({
+      x: XVal,
+      y: avgPhase,
+      // yMin: minPhase,
+      // yMax: maxPhase,
+    });
 
-    console.log(this.dataChart.data);
+    this.dataChart.update();
 
     if (!this.startTime) return;
 
     if (this.controller.motor == null) {
-      this.getData(); // Continue fetching the next data
+      this.getData();
       return;
     }
 
     this.controller.motor.jogForwards();
-
-    console.log("next data");
   }
 
   clearChart() {
     this.dataChart.data.labels = []; // Remove all time labels
     this.dataChart.data.datasets[0].data = []; // Remove all data points
+    this.dataChart.data.datasets[1].data = []; // Remove all data points
     this.dataChart.update(); // Refresh the chart
   }
 
@@ -360,44 +392,65 @@ export default class VNAConnection {
     } else if (beforeCrText == "capture") {
       this.displayImage(afterCr, 800, 480);
     } else if (beforeCrText.startsWith("data")) {
-      const magnitudes = this.getMags(afterCrText);
-      const filteredMagnitudes = magnitudes.filter((value) =>
-        Number.isFinite(value)
+      const dataPoints = this.getMagsAndPhases(afterCrText);
+      const filteredData = dataPoints.filter(
+        (value) =>
+          Number.isFinite(value.magnitude) && Number.isFinite(value.phase)
       );
 
-      if (filteredMagnitudes.length > 0) {
-        const max = Math.max(...filteredMagnitudes);
-        const min = Math.min(...filteredMagnitudes);
-        const sum = filteredMagnitudes.reduce((a, b) => a + b, 0);
-        const avg = sum / filteredMagnitudes.length;
+      if (filteredData.length > 0) {
+        const magnitudes = filteredData.map((d) => d.magnitude);
+        const phases = filteredData.map((d) => d.phase);
 
-        console.log("Min:", min);
-        console.log("Max:", max);
-        console.log("Mean:", avg);
+        const maxMag = Math.max(...magnitudes);
+        const minMag = Math.min(...magnitudes);
+        const avgMag =
+          magnitudes.reduce((a, b) => a + b, 0) / magnitudes.length;
 
-        this.updateChart(min, max, avg);
+        const maxPhase = Math.max(...phases);
+        const minPhase = Math.min(...phases);
+        const avgPhase = phases.reduce((a, b) => a + b, 0) / phases.length;
+
+        console.log(
+          "Magnitude - Min:",
+          minMag,
+          "Max:",
+          maxMag,
+          "Mean:",
+          avgMag
+        );
+        console.log(
+          "Phase - Min:",
+          minPhase,
+          "Max:",
+          maxPhase,
+          "Mean:",
+          avgPhase
+        );
+
+        this.updateChart(minMag, maxMag, avgMag, minPhase, maxPhase, avgPhase);
       } else {
-        console.log("No valid numbers in magnitudes array.");
+        console.log("No valid numbers in data array.");
       }
-    } else if (beforeCrText.startsWith("version")) {
-      document.getElementById("VNAConnected").checked = true;
-    } else {
-      console.log(afterCrText);
     }
   }
 
-  getMags(text) {
+  getMagsAndPhases(text) {
     const components = text.split("\n");
     return components
       .map((line) => {
         let [real, imag] = line.split(" ").map(Number);
+        // console.log(real, imag);
         if (isNaN(real) || isNaN(imag)) return null; // Handle invalid lines
         let magnitude = Math.sqrt(real ** 2 + imag ** 2);
-        return 20 * Math.log10(magnitude);
+        let phase = Math.atan2(imag, real); // Phase in radians
+        return {
+          magnitude: 20 * Math.log10(magnitude), // Magnitude in dB
+          phase: phase * (180 / Math.PI), // Phase in degrees
+        };
       })
       .filter((x) => x !== null); // Remove invalid entries
   }
-
   // Loop to continuously read data from the serial stream
   async readLoop() {
     const chPrompt = new TextEncoder().encode("ch> ");

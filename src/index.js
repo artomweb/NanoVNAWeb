@@ -158,7 +158,6 @@ const controller = new Controller();
 //   .addEventListener("click", async () => {
 //     await controller.disconnectBoth();
 //   });
-
 window.addEventListener("load", () => {
   document.getElementById("connectMotor").addEventListener("click", () => {
     controller.connectMotor();
@@ -175,13 +174,24 @@ window.addEventListener("load", () => {
     data: {
       datasets: [
         {
-          label: "Average Data",
+          label: "Magnitude (dBm)",
           data: [],
-          fill: false, // No fill under the line
-          borderColor: "blue", // Line color
-          borderWidth: 2, // Line width
-          pointRadius: 5, // Size of points
-          pointBackgroundColor: "red", // Point color
+          fill: false,
+          borderColor: "blue",
+          borderWidth: 2,
+          pointRadius: 5,
+          pointBackgroundColor: "red",
+          yAxisID: "y", // Link to left y-axis
+        },
+        {
+          label: "Phase (degrees)",
+          data: [],
+          fill: false,
+          borderColor: "teal", // Different color for phase
+          borderWidth: 2,
+          pointRadius: 5,
+          pointBackgroundColor: "green",
+          yAxisID: "y1", // Link to right y-axis
         },
       ],
     },
@@ -196,20 +206,37 @@ window.addEventListener("load", () => {
           min: 0, // Forces the x-axis to start at zero
           title: {
             display: true,
-            text: "Time since start of test (seconds)", // Y-axis label
+            text: "Time since start of test (seconds)", // Default, updated by VNAConnection
           },
         },
         y: {
           beginAtZero: true,
           title: {
             display: true,
-            text: "Signal strength (dBm)", // Y-axis label
+            text: "Magnitude (dBm)", // Left y-axis for magnitude
           },
+          position: "left",
+        },
+        y1: {
+          title: {
+            display: true,
+            text: "Phase (degrees)", // Right y-axis for phase
+          },
+          position: "right",
+          grid: {
+            drawOnChartArea: false, // Avoid overlapping grid lines
+          },
+          ticks: {
+            callback: function (value) {
+              return value + "°"; // Optional: append degree symbol to tick labels
+            },
+          },
+          // No fixed min/max to allow auto-scaling
         },
       },
       plugins: {
         legend: {
-          display: false, // Hides the legend
+          display: true, // Show legend to distinguish datasets
         },
       },
     },
